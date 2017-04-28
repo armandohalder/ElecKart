@@ -132,21 +132,46 @@ str(monthlyNPS_data)
 monthlyNPS_data$Date <- as.Date(monthlyNPS_data$Date, format = "%m/%d/%Y")
 monthlyNPS_data$Month <- month(ymd(monthlyNPS_data$Date))
 
+# ***************************************************************************
+#                   WEEKLY DATA AGGREGATION ----
+# ***************************************************************************
+ce_data_weekly <-  ce_data %>% 
+  group_by(product_analytic_category,
+           product_analytic_sub_category,
+           product_analytic_vertical,
+           Month,
+           week) %>% 
+  summarize(gmv=sum(gmv), 
+            product_mrp=sum(product_mrp), 
+            units=sum(units),
+            discount=sum(discount),
+            sla=mean(sla), 
+            procurement_sla=mean(product_procurement_sla))
+
 
 # ***************************************************************************
 #                   MERGING DATA ----
 # ***************************************************************************
 
+
 # . . . .   Merge MediaInvestment & NPS ----
-media_nps_data <- merge(mediaInvestment_data, monthlyNPS_data[,-1], by = 'Month', all.x = TRUE)
+media_nps <- merge(mediaInvestment_data, monthlyNPS_data[,-1], by = 'Month', all.x = TRUE)
 # . . . .   Make the data daily ----
-media_nps_data <- cbind(Month=media_nps_data[,c(1)],
-                        media_nps_data[,-c(1,2)]/30.42)
+media_nps <- cbind(Month=media_nps[,c(1)],
+                   media_nps[,-c(1,2)]/4.30)
 
 # . . . .   Merge Sales & SaleDays
-data <- merge(ce_data, specialSale_data[,-3], by.x ='order_date', by.y = 'Date', all.x = TRUE)
+data <- merge(ce_data_weekly, specialSale_data[,-1], by = 'week', all.x = TRUE)
 data$Sales.Name[is.na(data$Sales.Name)] <- "No sale"
 
+
 #. . . .   Merge Data & Media_NPS
-data <- merge(data, media_nps_data, by = 'Month', all.x = TRUE)
+data <- merge(data, media_nps, by = 'Month', all.x = TRUE)
+data <- data[,-12]
+
+# ***************************************************************************
+#                        EDA ----
+# ***************************************************************************
 summary(data)
+nrow(ce_data_weekly)
+

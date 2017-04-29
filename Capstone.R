@@ -4,7 +4,8 @@
 library(lubridate)
 library(dplyr)
 library(ggplot2)
-
+library(MASS)
+library(car)
 # ***************************************************************************
 #                   PROCs ----
 # ***************************************************************************
@@ -125,6 +126,8 @@ str(specialSale_data)
 specialSale_data$Date          <- as.Date(specialSale_data$Date, format = "%m/%d/%Y")
 specialSale_data$week <- nweek(specialSale_data$Date,origin = as.Date("2015-07-01"))
 summary(specialSale_data)
+unique(specialSale_data$week)
+specialSale_data<- specialSale_data[!duplicated(specialSale_data$week),]      #Subsetting unique holiday weeks
 
 
 # . . . .   Monthly NPS ----
@@ -167,10 +170,34 @@ data$Sales.Name[is.na(data$Sales.Name)] <- "No sale"
 
 #. . . .   Merge Data & Media_NPS
 data <- merge(data, media_nps, by = 'Month', all.x = TRUE)
-data <- data[,-12]
+
+# Converting the varible type into 'factor'
+data$Month <- as.factor(data$Month)
+data$week <- as.factor(data$week)
+data$product_analytic_category <- as.factor(data$product_analytic_category)
+data$product_analytic_sub_category <- as.factor(data$product_analytic_sub_category)
+data$product_analytic_vertical <- as.factor(data$product_analytic_category)
+# Discount on Products
+data$discount <- ((data$product_mrp - data$gmv)/(data$product_mrp) * 100)
+data$Holiday.Sale <- ifelse(data$Sales.Name == "No Sale", 0, 1)
 
 # ***************************************************************************
-#                        EDA ----
+#           CREATE A NEW DATASET WITH ONLY THE IMP VARIABLES ----
 # ***************************************************************************
 
+write.csv(data, file = "eleckart.csv",row.names=FALSE)
 
+eleckart <- data[,c(2,6,7,8,9,10,11,14,15,16,17,18,19,20,21,22,23,24)]
+
+# ***************************************************************************
+#                        LINEAR MODEL ----
+# ***************************************************************************
+
+indices=sample(1:nrow(eleckart),0.7*nrow(eleckart))
+train=data[indices,]
+test=data[-indices,]
+
+#Modelling the Advertising Effects
+model_1 <- lm(units~ .,data=eleckart)
+summary(model_1)
+vif(model_1)
